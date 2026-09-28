@@ -32,3 +32,6 @@ For the Blockbender bridge, the current EaglerProxy setup expects:
 `Eaglercraft -> EaglerProxy -> ViaProxy -> play.blockbender.com`
 
 Do not put the Java server address directly into the Eaglercraft client.
+
+
+<!-- Integration verified against EaglercraftX 1.8 launch-option requirements. -->
