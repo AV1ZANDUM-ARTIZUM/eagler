@@ -1,0 +1,68 @@
+name: Integrate EaglerProxy
+
+on:
+  push:
+    paths:
+      - "Minecraft_1.8.html"
+      - ".github/workflows/integrate-eaglerproxy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add EaglerProxy launch options
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("Minecraft_1.8.html")
+          text = path.read_text(encoding="utf-8")
+
+          marker = "window.eaglercraftXOptsHints = {"
+          if "/* AV1ZANDUM EaglerProxy integration */" in text:
+              print("EaglerProxy integration already present.")
+              raise SystemExit(0)
+
+          block = r'''/* AV1ZANDUM EaglerProxy integration */
+          // Local EaglerProxy works automatically over plain HTTP:
+          //   ws://127.0.0.1:8080/
+          //
+          // For a public HTTPS client, pass the public WSS endpoint in the URL:
+          //   ?proxy=wss%3A%2F%2Fyour-proxy.example%2F
+          // This keeps the client from advertising a dead/fake public server.
+          const eaglerProxyQuery = new URLSearchParams(window.location.search).get("proxy");
+          const eaglerProxyURL = eaglerProxyQuery || (
+              window.location.protocol === "http:" ? "ws://127.0.0.1:8080/" : null
+          );
+
+          window.eaglercraftXOpts = {
+              servers: eaglerProxyURL ? [
+                  { addr: eaglerProxyURL, name: "EaglerProxy" }
+              ] : []
+          };
+
+          '''
+
+          if marker not in text:
+              raise SystemExit("Could not find Eaglercraft launch-options marker.")
+
+          path.write_text(text.replace(marker, block + marker, 1), encoding="utf-8")
+          PY
+
+      - name: Commit generated client change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Minecraft_1.8.html
+          if git diff --cached --quiet; then
+            echo "No client changes needed."
+            exit 0
+          fi
+          git commit -m "Integrate EaglerProxy into Eaglercraft client [skip ci]"
+          git push
