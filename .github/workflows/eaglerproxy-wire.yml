@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - ".github/workflows/eaglerproxy-wire.yml"
+      - "EAGLERPROXY.md"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,33 +17,53 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Add EaglerProxy server
+
+      - name: Patch bundled Eaglercraft client
+        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path("Minecraft_1.8.html")
           s = p.read_text(encoding="utf-8")
-          old = "\tcheckRelaysForUpdates: true\r\n};"
-          if old not in s:
-              old = "\tcheckRelaysForUpdates: true\n};"
-          new = """\tcheckRelaysForUpdates: true,
-\t// AV1ZANDUM EaglerProxy (local development)
-\t// Change this to your public wss:// EaglerProxy address when deployed.
-\tservers: [
-\t\t{ addr: "ws://localhost:8080/", name: "AV1ZANDUM EaglerProxy" }
-\t]
-};"""
-          if "AV1ZANDUM EaglerProxy" not in s:
-              if old not in s:
-                  raise SystemExit("Could not find Eaglercraft launch options")
-              s = s.replace(old, new, 1)
-              p.write_text(s, encoding="utf-8", newline="")
+
+          marker = "/* AV1ZANDUM EaglerProxy integration */"
+          if marker in s:
+              print("EaglerProxy integration already present.")
+              raise SystemExit(0)
+
+          needle = "window.eaglercraftXOptsHints = {"
+          if needle not in s:
+              raise SystemExit("Could not find Eaglercraft launch-options marker")
+
+          block = r'''/* AV1ZANDUM EaglerProxy integration */
+          // Local testing: serve this page over HTTP and run EaglerProxy on port 8080.
+          // Public HTTPS: add ?proxy=wss%3A%2F%2FYOUR-PROXY-HOST%2F to the page URL.
+          const eaglerProxyQuery = new URLSearchParams(window.location.search).get("proxy");
+          const eaglerProxyURL = eaglerProxyQuery || (
+              window.location.protocol === "http:" ? "ws://127.0.0.1:8080/" : null
+          );
+
+          window.eaglercraftXOpts = {
+              servers: eaglerProxyURL ? [
+                  { addr: eaglerProxyURL, name: "AV1ZANDUM EaglerProxy" }
+              ] : []
+          };
+
+          '''
+
+          p.write_text(s.replace(needle, block + needle, 1), encoding="utf-8")
+
           PY
-      - name: Commit change
+
+      - name: Commit patched client
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Minecraft_1.8.html
-          git diff --cached --quiet && exit 0
-          git commit -m "Wire EaglerProxy into Eaglercraft client"
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Wire EaglerProxy into Eaglercraft client [skip ci]"
           git push
