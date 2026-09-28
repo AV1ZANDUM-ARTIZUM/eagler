@@ -16,20 +16,6 @@ const relayId = Math.floor(Math.random() * 3);
 
 // %%%%%%%%% launch options %%%%%%%%%%%%
 
-/* AV1ZANDUM EaglerProxy integration */
-// Local testing: serve this page over HTTP and run EaglerProxy on port 8080.
-// Public HTTPS: add ?proxy=wss%3A%2F%2FYOUR-PROXY-HOST%2F to the page URL.
-const eaglerProxyQuery = new URLSearchParams(window.location.search).get("proxy");
-const eaglerProxyURL = eaglerProxyQuery || (
-    window.location.protocol === "http:" ? "ws://127.0.0.1:8080/" : null
-);
-
-window.eaglercraftXOpts = {
-    servers: eaglerProxyURL ? [
-        { addr: eaglerProxyURL, name: "AV1ZANDUM EaglerProxy" }
-    ] : []
-};
-
 window.eaglercraftXOptsHints = {
 	hintsVersion: 1,
 	container: "game_frame",
