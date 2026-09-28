@@ -51,6 +51,24 @@ window.eaglercraftXOptsHints = {
 	checkRelaysForUpdates: true
 };
 
+// EaglerProxy integration.
+// Local default: run EaglerProxy on 127.0.0.1:8080.
+// A hosted proxy can be selected with:
+// ?eaglerproxy=wss://YOUR-PROXY-HOST/
+const eaglerProxyParam = new URLSearchParams(window.location.search).get("eaglerproxy");
+const eaglerProxyAddress = eaglerProxyParam || "ws://127.0.0.1:8080/";
+
+window.eaglercraftXOpts = {
+  container: "game_frame",
+  worldsDB: "worlds",
+  servers: [
+    {
+      name: "EaglerProxy",
+      addr: eaglerProxyAddress
+    }
+  ]
+};
+
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 </script>
