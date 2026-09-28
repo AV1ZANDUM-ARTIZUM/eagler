@@ -28,32 +28,46 @@ jobs:
           s = p.read_text(encoding="utf-8")
 
           marker = "/* AV1ZANDUM EaglerProxy integration */"
-          if marker in s:
-              print("EaglerProxy integration already present.")
-              raise SystemExit(0)
-
           needle = "window.eaglercraftXOptsHints = {"
+
+          block = r'''/* AV1ZANDUM EaglerProxy integration */
+// Local testing: serve this page over HTTP and run EaglerProxy on port 8080.
+// Public HTTPS: add ?proxy=wss%3A%2F%2FYOUR-PROXY-HOST%2F to the page URL.
+const eaglerProxyQuery = new URLSearchParams(window.location.search).get("proxy");
+const eaglerProxyURL = eaglerProxyQuery || (
+    window.location.protocol === "http:" ? "ws://127.0.0.1:8080/" : null
+);
+
+window.eaglercraftXOpts = {
+    demoMode: false,
+    container: "game_frame",
+    assetsURI: "assets.epk",
+    localesURI: "lang/",
+    worldsDB: "worlds",
+    servers: eaglerProxyURL ? [
+        { addr: eaglerProxyURL, name: "AV1ZANDUM EaglerProxy" }
+    ] : [],
+    relays: [
+        { addr: "wss://relay.deev.is/", comment: "lax1dude relay #1", primary: relayId === 0 },
+        { addr: "wss://relay.lax1dude.net/", comment: "lax1dude relay #2", primary: relayId === 1 },
+        { addr: "wss://relay.shhnowisnottheti.me/", comment: "ayunami relay #1", primary: relayId === 2 }
+    ],
+    checkRelaysForUpdates: true
+};
+
+'''
+
           if needle not in s:
               raise SystemExit("Could not find Eaglercraft launch-options marker")
 
-          block = r'''/* AV1ZANDUM EaglerProxy integration */
-          // Local testing: serve this page over HTTP and run EaglerProxy on port 8080.
-          // Public HTTPS: add ?proxy=wss%3A%2F%2FYOUR-PROXY-HOST%2F to the page URL.
-          const eaglerProxyQuery = new URLSearchParams(window.location.search).get("proxy");
-          const eaglerProxyURL = eaglerProxyQuery || (
-              window.location.protocol === "http:" ? "ws://127.0.0.1:8080/" : null
-          );
+          if marker in s:
+              start = s.index(marker)
+              end = s.index(needle, start)
+              s = s[:start] + block + s[end:]
+          else:
+              s = s.replace(needle, block + needle, 1)
 
-          window.eaglercraftXOpts = {
-              servers: eaglerProxyURL ? [
-                  { addr: eaglerProxyURL, name: "AV1ZANDUM EaglerProxy" }
-              ] : []
-          };
-
-          '''
-
-          p.write_text(s.replace(needle, block + needle, 1), encoding="utf-8")
-
+          p.write_text(s, encoding="utf-8")
           PY
 
       - name: Commit patched client
@@ -65,7 +79,5 @@ jobs:
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "Wire EaglerProxy into Eaglercraft client [skip ci]"
+          git commit -m "Fix EaglerProxy launch options [skip ci]"
           git push
-
-# Verified integration workflow
