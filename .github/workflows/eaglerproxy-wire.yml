@@ -1,0 +1,47 @@
+name: Wire EaglerProxy into client
+
+on:
+  push:
+    paths:
+      - ".github/workflows/eaglerproxy-wire.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Add EaglerProxy server
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("Minecraft_1.8.html")
+          s = p.read_text(encoding="utf-8")
+          old = "\tcheckRelaysForUpdates: true\r\n};"
+          if old not in s:
+              old = "\tcheckRelaysForUpdates: true\n};"
+          new = """\tcheckRelaysForUpdates: true,
+\t// AV1ZANDUM EaglerProxy (local development)
+\t// Change this to your public wss:// EaglerProxy address when deployed.
+\tservers: [
+\t\t{ addr: "ws://localhost:8080/", name: "AV1ZANDUM EaglerProxy" }
+\t]
+};"""
+          if "AV1ZANDUM EaglerProxy" not in s:
+              if old not in s:
+                  raise SystemExit("Could not find Eaglercraft launch options")
+              s = s.replace(old, new, 1)
+              p.write_text(s, encoding="utf-8", newline="")
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Minecraft_1.8.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Wire EaglerProxy into Eaglercraft client"
+          git push
